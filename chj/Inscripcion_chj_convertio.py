@@ -7,26 +7,37 @@ Created on Wed Jul 27 18:15:52 2022
 from collections import OrderedDict
 import copy
 import csv
+from datetime import date
+from locale import atof, setlocale, LC_NUMERIC
 
 import littleLogging as logging
 
+setlocale(LC_NUMERIC, 'es_ES')
+
 NMAX_ERROR_READING_FILE = 15
 
-NULL_VALUE = ''
+NULL = ''
 
-keys_inscripcion = [('clave',NULL_VALUE),
-                    ('seccion',NULL_VALUE), ('tomo',NULL_VALUE),
-                    ('folio',NULL_VALUE), ('ugh',NULL_VALUE),
-                    ('tipo',NULL_VALUE),
-                    ('fecha',NULL_VALUE), ('clase_afeccion',NULL_VALUE),
-                    ('vol_max_m3',NULL_VALUE), ('superficie_ha',NULL_VALUE),
-                    ('corriente_acu',NULL_VALUE),
-                    ('paraje',NULL_VALUE), ('municipio',NULL_VALUE),
-                    ('provincia',NULL_VALUE), ('ca', NULL_VALUE),
-                    ('titular',NULL_VALUE)]
+keys_inscripcion = [('clave', [NULL, str]),
+                    ('seccion', [NULL, str]), ('tomo', [NULL, str]),
+                    ('folio', [NULL, str]), ('ugh', [NULL, str]),
+                    ('tipo', [NULL, str]),
+                    ('fecha', [NULL, date]),
+                    ('clase_afeccion', [NULL, str]),
+                    ('vol_max_m3', [NULL, float]),
+                    ('superficie_ha', [NULL, float]),
+                    ('corriente_acu', [NULL, str]),
+                    ('paraje', [NULL, str]), ('municipio', [NULL, str]),
+                    ('provincia', [NULL, str]), ('ca', [NULL, str]),
+                    ('titular', [NULL, str])]
 
-keys_toma = [('clave', NULL_VALUE), ('toma', NULL_VALUE),
-             ('xutm', NULL_VALUE), ('yutm', NULL_VALUE), ('huso', NULL_VALUE)]
+# WARNING,last item in keys_toma must be last item to be read in chj file
+keys_toma = [('clave', [NULL, str]), ('toma', [NULL, str]),
+             ('xutm', [NULL, float]), ('yutm', [NULL, float]),
+             ('huso', [NULL, str])]
+
+INSCRIPCION_PRIMARY_KEY = 'clave'
+
 
 class IT():
     """
@@ -38,34 +49,49 @@ class IT():
         self.d = OrderedDict(keys)
 
 
-    def property_set(self, name: str, value: str):
+    def __getitem__(self, key: str):
+        if key not in self.d.keys():
+            raise KeyError
+        return self.d[key][0]
+
+
+    def __setitem__(self, key: str, value: str):
         """
-        Set the values in self.d with values readed from file generated
+        Set the values in self.d with values readed from txt file generated
         with convertio
 
         Parameters
         ----------
-        name : str
+        key : str
             key in file.
         value : str
             key value.
 
         Returns
         -------
-        Boolean
+            Exceptions: KeyError, ValueError
         """
-        if name in self.d.keys():
-            self.d[name] = value
-            return True
+
+        if key not in self.d.keys():
+            raise KeyError(f'{key} is not a valid key')
+
+        if self.d[key][1] is float:
+            self.d[key][0] = self.str_to_float(value)
+        elif self.d[key][1] is date:
+            self.d[key][0] = self.str_to_date(value)
         else:
-            return False
+            if '  ' in value:
+                lvalue = value.split()
+                value = ' '.join(lvalue)
+            self.d[key][0] = value
+
 
     def keys_get(self):
         return list(self.d.keys())
 
 
     def values_get(self):
-        return list(self.d.values())
+        return [v2[0] for v2 in list(self.d.values())]
 
 
     def is_key(self, name:str):
@@ -75,11 +101,70 @@ class IT():
             return False
 
 
-    def all_values_are_set(self):
-        for v1 in self.keys_get():
-            if v1 == '':
-                return False
-        return True
+    def str_to_date(self, str_date: str):
+        """
+        formats str_date (date as str) as '%Y-%m-%d'
+        ; if not returns str_date
+
+        Parameters
+        ----------
+        str_date : str
+            date as str
+
+        Returns
+        -------
+            str '%Y-%m-%d' or ''
+        """
+        months = dict([('ene', 1),('jan',1),('feb',2),('mar',3),
+                  ('abr',4),('may',5),('jun',6),
+                  ('jul',7),('ago',8),('aug',8),('sep',9),
+                  ('oct',10),('nov',11),('dic',12)])
+
+        try:
+            ws = str_date.split('/')
+            if len(ws) == 3:
+                dt = date(int(ws[2]), int(ws[1]), int(ws[0]))
+                return dt.strftime('%Y-%m-%d')
+
+            ws = str_date.split()
+            if len(ws) >= 3:
+                ws[0] = ws[0].lower()
+                if ws[0] in months.keys():
+                    ws[0] = months[ws[0]]
+                    dt = date(int(ws[2]), int(ws[0]), int(ws[1]))
+                    return dt.strftime('%Y-%m-%d')
+
+            if len(str_date.strip()) == 0:
+                return ''
+
+            logging.append(f'{str_date} unkown str representation of a date')
+            return ''
+        except:
+            logging.append(f'{str_date} can not be formated as date')
+            return ''
+
+
+    def str_to_float(self, str_float: str):
+        """
+        str to float using atof
+
+        Parameters
+        ----------
+        str_float : str
+            float as str
+
+        Returns
+        -------
+            float or ''
+        """
+        if len(str_float.strip()) == 0:
+            return ''
+
+        try:
+            return atof(str_float)
+        except:
+            logging.append(f'{str_float} can not be converted to float')
+            return ''
 
 
 class Counter():
@@ -118,7 +203,7 @@ class File_convertio():
 
     """
 
-    # keys in the chj pdf file
+    # alls keys in the chj pdf file
     keys = ('TIPO INSCRIPCIÓN:',
              'COMUNIDAD AUTÓNOMA:',
              'PROVINCIA:',
@@ -141,6 +226,7 @@ class File_convertio():
              'UTMX:',
              'UTM Y:',
              'HUSO:')
+
 
     def __init__(self, fi1: str, fo_inscripcion: str, fo_toma: str):
         """
@@ -287,14 +373,14 @@ class File_convertio():
                     f'{ntoma_no_codificada.i:d}'
 
             if inscrip.is_key(k1):
-                inscrip.property_set(k1, v1)
+                inscrip[k1] = v1
             elif toma.is_key(k1):
-                toma.property_set(k1, v1)
+                toma[k1] = v1
+                # si key es la última
                 if k1 == toma.keys_get()[-1]:
-                    # asignar clave
-                    name = 'clave'
-                    value = inscrip.d[name]
-                    toma.property_set(name, value)
+                    name = INSCRIPCION_PRIMARY_KEY
+                    value = inscrip[name]
+                    toma[name] = value
                     tomas.append(copy.copy(toma))
                     toma = IT(keys_toma)
             else:
