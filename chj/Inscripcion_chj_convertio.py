@@ -115,22 +115,25 @@ class IT():
         -------
             str '%Y-%m-%d' or ''
         """
-        months = dict([('ene', 1),('jan',1),('feb',2),('mar',3),
+        MONTHS = dict([('ene', 1),('jan',1),('feb',2),('mar',3),
                   ('abr',4),('may',5),('jun',6),
                   ('jul',7),('ago',8),('aug',8),('sep',9),
                   ('oct',10),('nov',11),('dic',12)])
 
+        DATE_SEPARATORS = ('/', '-')
+
         try:
-            ws = str_date.split('/')
-            if len(ws) == 3:
-                dt = date(int(ws[2]), int(ws[1]), int(ws[0]))
-                return dt.strftime('%Y-%m-%d')
+            for sep in DATE_SEPARATORS:
+                ws = str_date.split(sep)
+                if len(ws) == 3:
+                    dt = date(int(ws[2]), int(ws[1]), int(ws[0]))
+                    return dt.strftime('%Y-%m-%d')
 
             ws = str_date.split()
             if len(ws) >= 3:
                 ws[0] = ws[0].lower()
-                if ws[0] in months.keys():
-                    ws[0] = months[ws[0]]
+                if ws[0] in MONTHS.keys():
+                    ws[0] = MONTHS[ws[0]]
                     dt = date(int(ws[2]), int(ws[0]), int(ws[1]))
                     return dt.strftime('%Y-%m-%d')
 

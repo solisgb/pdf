@@ -12,10 +12,10 @@ import littleLogging as logging
 import Inscripcion_chj_convertio as inscrip_chj
 
 # ===================================================
-fi1 = r'H:\LSGB\data2db\chj_inscripciones\SUPERFICIAL_ALICANTE_convertio.txt'
-dir_out = r'H:\LSGB\data2db\chj_inscripciones\output_convertio\ali'
-fo_inscripcion = join(dir_out, 'inscripciones_superf_alicante.csv')
-fo_toma = join(dir_out, 'tomas_superf_alicante.csv')
+fi1 = r'H:\LSGB\data2db\chj_inscripciones\SUPERFICIAL_ALBACETE_convertio.txt'
+dir_out = r'H:\LSGB\data2db\chj_inscripciones\output_convertio'
+fo_inscripcion = join(dir_out, 'inscripciones_superf_albacete.csv')
+fo_toma = join(dir_out, 'tomas_superf_albacete.csv')
 # ===================================================
 
 if __name__ == "__main__":
