@@ -9,18 +9,17 @@ import copy
 import csv
 from datetime import date
 from locale import atof, setlocale, LC_NUMERIC
+from os.path import basename
 
 import littleLogging as logging
 
 setlocale(LC_NUMERIC, 'es_ES')
 
-NMAX_ERROR_READING_FILE = 15
-
 NULL = ''
 
-keys_inscripcion = [('clave', [NULL, str]),
-                    ('seccion', [NULL, str]), ('tomo', [NULL, str]),
-                    ('folio', [NULL, str]), ('ugh', [NULL, str]),
+keys_inscripcion = [('seccion', [NULL, str]), ('tomo', [NULL, str]),
+                    ('folio', [NULL, str]),
+                    ('clave', [NULL, str]), ('ugh', [NULL, str]),
                     ('tipo', [NULL, str]),
                     ('fecha', [NULL, date]),
                     ('clase_afeccion', [NULL, str]),
@@ -31,22 +30,26 @@ keys_inscripcion = [('clave', [NULL, str]),
                     ('provincia', [NULL, str]), ('ca', [NULL, str]),
                     ('titular', [NULL, str])]
 
-# WARNING,last item in keys_toma must be last item to be read in chj file
-keys_toma = [('clave', [NULL, str]), ('toma', [NULL, str]),
+# WARNING: Last item in keys_toma must be last item to be read in chj file;
+# ID_TOMA is a key not present in the chj file
+ID_TOMA = 'toma_ins'
+keys_toma = [(ID_TOMA, [NULL, str]),
+             ('seccion', [NULL, str]), ('tomo', [NULL, str]),
+             ('folio', [NULL, str]), ('toma', [NULL, str]),
              ('xutm', [NULL, float]), ('yutm', [NULL, float]),
              ('huso', [NULL, str])]
 
-INSCRIPCION_PRIMARY_KEY = 'clave'
+INSCRIPCION_PRIMARY_KEY = ('seccion', 'tomo', 'folio')
 
 
 class IT():
     """
-    Characteristics of the inscriptions and its intakes provided by the CHJ
-    through a pdf file downloaded from its web site
+    Characteristics of the inscriptions and its intakes (tomas) provided
+    by the CHJ through a pdf file downloaded from its web site
     """
 
     def __init__(self, keys: [()]):
-        self.d = OrderedDict(keys)
+        self.d = OrderedDict(copy.deepcopy(keys))
 
 
     def __getitem__(self, key: str):
@@ -69,7 +72,7 @@ class IT():
 
         Returns
         -------
-            Exceptions: KeyError, ValueError
+            Exceptions: KeyError
         """
 
         if key not in self.d.keys():
@@ -86,6 +89,15 @@ class IT():
             self.d[key][0] = value
 
 
+    def __str__(self):
+        l = [str(item) for item in self.values_get()]
+        return ','.join(l)
+
+
+    def __rep__(self):
+        return str(self)
+
+
     def keys_get(self):
         return list(self.d.keys())
 
@@ -94,8 +106,8 @@ class IT():
         return [v2[0] for v2 in list(self.d.values())]
 
 
-    def is_key(self, name:str):
-        if name in self.d:
+    def has_key(self, name:str):
+        if name in self.d.keys():
             return True
         else:
             return False
@@ -230,6 +242,7 @@ class File_convertio():
              'UTM Y:',
              'HUSO:')
 
+    PRINT_COUNTER_EACH = 500  # rows
 
     def __init__(self, fi1: str, fo_inscripcion: str, fo_toma: str):
         """
@@ -257,9 +270,10 @@ class File_convertio():
 
 
     @staticmethod
-    def __translate_to_true_keys(name: str):
+    def __get_key(name: str):
         """
-        Translates the names of the keys in the file to key names in IT obj
+        Correspondence between the names of the keys in the file
+        to key names in IT instance
 
         Parameters
         ----------
@@ -272,61 +286,37 @@ class File_convertio():
             Name of the key in object IT
 
         """
+        dict_translate = \
+            dict([('TIPO INSCRIPCIÓN:', 'tipo'),
+                  ('COMUNIDAD AUTÓNOMA:', 'ca'),
+                  ('PROVINCIA:', 'provincia'),
+                  ('Municipio:', 'municipio'),
+                  ('Sección:', 'seccion'),
+                  ('Tomo:', 'tomo'),
+                  ('Folio:', 'folio'),
+                  ('Clave:', 'clave'),
+                  ('UGH:', 'ugh'),
+                  ('Fecha Concesión:', 'fecha'),
+                  ('Clase y Afeccion:', 'clase_afeccion'),
+                  ('Vol. Max. Anual (m3):', 'vol_max_m3'),
+                  ('Superficie (ha):', 'superficie_ha'),
+                  ('Corriente - Acuifero:', 'corriente_acu'),
+                  ('Paraje:', 'paraje'),
+                  ('Municipio:', 'municipio'),
+                  ('Provincia:', 'provincia'),
+                  ('Titular:', 'titular'),
+                  ('TOMA:', 'toma'),
+                  ('UTMX:', 'xutm'),
+                  ('UTM Y:', 'yutm'),
+                  ('HUSO:', 'huso')])
 
-        if name == 'TIPO INSCRIPCIÓN:':
-            name = 'tipo'
-        elif name == 'COMUNIDAD AUTÓNOMA:':
-            name = 'ca'
-        elif name == 'PROVINCIA:':
-            name = 'provincia'
-        elif name == 'Municipio:':
-            name = 'municipio'
-        elif name == 'Sección:':
-            name = 'seccion'
-        elif name == 'Tomo:':
-            name = 'tomo'
-        elif name == 'Folio:':
-            name = 'folio'
-        elif name == 'Clave:':
-            name = 'clave'
-        elif name == 'UGH:':
-            name = 'ugh'
-        elif name == 'Fecha Concesión:':
-            name = 'fecha'
-        elif name == 'Clase y Afeccion:':
-            name = 'clase_afeccion'
-        elif name == 'Vol. Max. Anual (m3):':
-            name = 'vol_max_m3'
-        elif name == 'Superficie (ha):':
-            name = 'superficie_ha'
-        elif name == 'Corriente - Acuifero:':
-            name = 'corriente_acu'
-        elif name == 'Paraje:':
-            name = 'paraje'
-        elif name == 'Municipio:':
-            name = 'municipio'
-        elif name == 'Provincia:':
-            name = 'provincia'
-        elif name == 'Titular:':
-            name = 'titular'
-        elif name == 'TOMA:':
-            name = 'toma'
-        elif name == 'UTMX:':
-            name = 'xutm'
-        elif name == 'UTM Y:':
-            name = 'yutm'
-        elif name == 'HUSO:':
-            name = 'huso'
+        if name not in dict_translate.keys():
+            return None
         else:
-            name = None
-        return name
+            return dict_translate[name]
 
 
     def __ins_from_list(self, keys_values: [[str, str]],
-                        nclave_no_codificada: Counter,
-                        prefix_clave_no_codificada:str,
-                        ntoma_no_codificada: Counter,
-                        prefix_toma_no_codificada: str,
                         inscrip: IT, toma: IT, tomas:[]):
         """
         Assigns the properties of the "inscrip" and "toma" objects based on
@@ -336,20 +326,12 @@ class File_convertio():
         ----------
         keys_values : [[str, str, int]]
             For each element key, value, number of row in the input file
-        nclave_no_codificada : Counter
-            Counter of objects inscrip with no clave id in the file.
-        prefix_clave_no_codificada : str
-            Prefix to set a clave id when none is provided
-        ntoma_no_codificada : Counter
-            Counter of objects toma with no toma id in the file.
-        prefix_toma_no_codificada : str
-            Prefix to set a toma id when none is provided.
         inscrip : IT
-            Object IT for registration (inscripción) data
+            Object IT type inscription (inscripción)
         toma : IT
-            Object IT for intake (toma) data.
+            Object IT type intake (toma).
         tomas : []
-            list of objects toma for a registration
+            list of objects toma for a inscription
 
         Raises
         ------
@@ -361,30 +343,26 @@ class File_convertio():
         None.
 
         """
+        ntoma = 0
         for k1, v1, r1 in keys_values:
-            k1 = self.__translate_to_true_keys(k1)
+            k1 = self.__get_key(k1)
             if k1 is None:
                 logging.append(f'row {r1}, "{k1}" is not a valid key')
                 continue
-            if k1 == 'clave' and (v1 == '' or v1 == '-'):
-                nclave_no_codificada += 1
-                v1 = f'{prefix_clave_no_codificada}' +\
-                    f'{nclave_no_codificada.i:d}'
-            elif k1 == 'toma' and (v1 == '' or v1 == '-'):
-                ntoma_no_codificada += 1
-                v1 = f'{prefix_toma_no_codificada}' +\
-                    f'{ntoma_no_codificada.i:d}'
 
-            if inscrip.is_key(k1):
+            if inscrip.has_key(k1):
                 inscrip[k1] = v1
-            elif toma.is_key(k1):
+            elif toma.has_key(k1):
                 toma[k1] = v1
-                # si key es la última
+                # si k1 es la última columna de toma
                 if k1 == toma.keys_get()[-1]:
-                    name = INSCRIPCION_PRIMARY_KEY
-                    value = inscrip[name]
-                    toma[name] = value
-                    tomas.append(copy.copy(toma))
+                    ntoma += 1
+                    toma[ID_TOMA] = str(ntoma)
+                    for ins_pk1 in INSCRIPCION_PRIMARY_KEY:
+                        name = ins_pk1
+                        value = inscrip[name]
+                        toma[name] = value
+                    tomas.append(copy.deepcopy(toma))
                     toma = IT(keys_toma)
             else:
                 raise ValueError(f'clave "{k1}" no reconocida')
@@ -403,14 +381,7 @@ class File_convertio():
         # Las líneas con este contenido no se consideran
         skip_text = 'CONFEDERACIÓN HIDROGRÁFICA DEL JÚCAR'
 
-        nclave_no_codificada = Counter(0)
-        prefix_clave_no_codificada = 'cnc_'
-
-        ntoma_no_codificada = Counter(0)
-        prefix_toma_no_codificada = 'tnc_'
-
         keys_values = []
-        ninscrip = Counter(0)
         inscrip = IT(keys_inscripcion)
         toma = IT(keys_toma)
         tomas = []
@@ -423,13 +394,14 @@ class File_convertio():
                  encoding='utf-8') as finscrip, \
             open(self.fo_toma, 'w', newline='', encoding='utf-8') as ftoma:
 
+            print('\n', basename(self.fi1))
             inscrip_w = csv.writer(finscrip, delimiter=',')
             toma_w = csv.writer(ftoma, delimiter=',')
             inscrip_w.writerow(inscrip.keys_get())
             toma_w.writerow(toma.keys_get())
 
             for ir, row in enumerate(fi):
-                if ir % 250 == 0:
+                if ir % self.PRINT_COUNTER_EACH == 0:
                     print(ir)
 
                 row = row.strip()
@@ -444,13 +416,7 @@ class File_convertio():
                         keys_values = []
                     else:
                         # grabo los datos de la inscripcion y sus tomas
-                        self.__ins_from_list(keys_values,
-                                             nclave_no_codificada,
-                                             prefix_clave_no_codificada,
-                                             ntoma_no_codificada,
-                                             prefix_toma_no_codificada,
-                                             inscrip, toma, tomas)
-                        ninscrip += 1
+                        self.__ins_from_list(keys_values, inscrip, toma, tomas)
                         inscrip_w.writerow(inscrip.values_get())
                         inscrip = IT(keys_inscripcion)
                         for toma1 in tomas:
@@ -479,4 +445,4 @@ class File_convertio():
                         keys_values.append([k1[0:], row[p1:pe].strip(), ir+1])
                     else:
                         keys_values.append([k1[0:], row[p1:].strip(), ir+1])
-
+            print(ir)

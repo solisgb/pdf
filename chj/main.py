@@ -4,7 +4,8 @@ Created on Sun Nov  1 13:08:40 2020
 
 @author: solis
 """
-from os.path import join
+import glob
+from os.path import basename, join, splitext
 from time import time
 import traceback
 
@@ -12,20 +13,28 @@ import littleLogging as logging
 import Inscripcion_chj_convertio as inscrip_chj
 
 # ===================================================
-fi1 = r'H:\LSGB\data2db\chj_inscripciones\SUPERFICIAL_ALBACETE_convertio.txt'
+dir_data = r'H:\LSGB\data2db\chj_inscripciones'
+pattern = '*ALBACETE_convertio.txt'
+
 dir_out = r'H:\LSGB\data2db\chj_inscripciones\output_convertio'
-fo_inscripcion = join(dir_out, 'inscripciones_superf_albacete.csv')
-fo_toma = join(dir_out, 'tomas_superf_albacete.csv')
 # ===================================================
 
 if __name__ == "__main__":
 
+    startTime = time()
+
     try:
-        startTime = time()
+        files = [basename(f1) for f1 in glob.glob(join(dir_data,pattern))]
+        for f1 in files:
+            fname, fextension = splitext(f1)
+            fo_inscrip = 'ins_' + fname + '.csv'
+            fo_toma = 'toma_' + fname + '.csv'
 
-        obj = inscrip_chj.File_convertio(fi1, fo_inscripcion, fo_toma)
+            obj = inscrip_chj.File_convertio(join(dir_data, f1.lower()),
+                                             join(dir_out, fo_inscrip.lower()),
+                                             join(dir_out, fo_toma.lower()))
 
-        obj.change_format()
+            obj.change_format()
 
     except ValueError:
         msg = traceback.format_exc()
