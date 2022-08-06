@@ -14,9 +14,9 @@ import Inscripcion_chj_convertio as inscrip_chj
 
 # ===================================================
 dir_data = r'H:\LSGB\data2db\chj_inscripciones'
-pattern = '*ALBACETE_convertio.txt'
+pattern = '*ALICANTE_convertio.txt'
 
-dir_out = r'H:\LSGB\data2db\chj_inscripciones\output_convertio'
+dir_out = r'H:\LSGB\data2db\chj_inscripciones\output_convertio\ali'
 # ===================================================
 
 if __name__ == "__main__":
